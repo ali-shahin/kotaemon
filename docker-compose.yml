@@ -1,0 +1,22 @@
+services:
+  kotaemon:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: lite # change to: full | ollama | paddle
+    # To use a prebuilt image instead of building locally, comment out `build`
+    # above and uncomment the line below:
+    # image: ghcr.io/cinnamon/kotaemon:main-lite
+    image: kotaemon:local
+    container_name: kotaemon
+    ports:
+      - "7860:7860"
+    environment:
+      GRADIO_SERVER_NAME: "0.0.0.0"
+      GRADIO_SERVER_PORT: "7860"
+    env_file:
+      - path: .env # config seed on first run; create from .env.example
+        required: false
+    volumes:
+      - ./ktem_app_data:/app/ktem_app_data
+    restart: unless-stopped
