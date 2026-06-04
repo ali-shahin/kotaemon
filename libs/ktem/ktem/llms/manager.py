@@ -1,3 +1,4 @@
+import logging
 from typing import Optional, Type, overload
 
 from sqlalchemy import select
@@ -8,6 +9,8 @@ from theflow.utils.modules import deserialize, import_dotted_string
 from kotaemon.llms import ChatLLM
 
 from .db import LLMTable, engine
+
+logger = logging.getLogger(__name__)
 
 
 class LLMManager:
@@ -44,12 +47,23 @@ class LLMManager:
             items = session.execute(stmt)
 
             for (item,) in items:
-                self._models[item.name] = deserialize(item.spec, safe=False)
                 self._info[item.name] = {
                     "name": item.name,
                     "spec": item.spec,
                     "default": item.default,
+                    "available": True,
                 }
+                try:
+                    self._models[item.name] = deserialize(item.spec, safe=False)
+                except (ImportError, ModuleNotFoundError, ValueError) as exc:
+                    logger.warning(
+                        "Skipping unavailable LLM model %s: %s",
+                        item.name,
+                        exc,
+                    )
+                    self._info[item.name]["available"] = False
+                    self._info[item.name]["error"] = str(exc)
+                    continue
                 if item.default:
                     self._default = item.name
 

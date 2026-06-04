@@ -1,3 +1,4 @@
+import logging
 from typing import Optional, Type
 
 from sqlalchemy import select
@@ -8,6 +9,8 @@ from theflow.utils.modules import deserialize
 from kotaemon.embeddings.base import BaseEmbeddings
 
 from .db import EmbeddingTable, engine
+
+logger = logging.getLogger(__name__)
 
 
 class EmbeddingManager:
@@ -42,12 +45,23 @@ class EmbeddingManager:
             items = sess.execute(stmt)
 
             for (item,) in items:
-                self._models[item.name] = deserialize(item.spec, safe=False)
                 self._info[item.name] = {
                     "name": item.name,
                     "spec": item.spec,
                     "default": item.default,
+                    "available": True,
                 }
+                try:
+                    self._models[item.name] = deserialize(item.spec, safe=False)
+                except (ImportError, ModuleNotFoundError, ValueError) as exc:
+                    logger.warning(
+                        "Skipping unavailable embedding model %s: %s",
+                        item.name,
+                        exc,
+                    )
+                    self._info[item.name]["available"] = False
+                    self._info[item.name]["error"] = str(exc)
+                    continue
                 if item.default:
                     self._default = item.name
                     self._models["default"] = self._models[item.name]

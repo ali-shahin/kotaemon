@@ -21,10 +21,8 @@ dynamic = ["version"]
 requires-python = ">= 3.10"
 description = "Kotaemon core library for AI development."
 dependencies = [
-    "azure-ai-documentintelligence",
     "beautifulsoup4>=4.12.3,<4.13",
     "click>=8.1.7,<9",
-    "cohere>=5.3.2,<6",
     "cookiecutter>=2.6.0,<2.7",
     "fast_langdetect",
     "fastapi<=0.112.1",
@@ -32,12 +30,6 @@ dependencies = [
     "html2text==2024.2.26",
     "langchain<2",
     "langchain-community<1",
-    "langchain-openai<2",
-    "langchain-google-genai<5",
-    "langchain-anthropic<2",
-    "langchain-ollama<2",
-    "langchain-mistralai<2",
-    "langchain-cohere<1",
     "llama-hub>=0.0.79,<0.1.0",
     "llama-index>=0.10.40,<0.11.0",
     "chromadb<=0.5.16",
@@ -60,7 +52,6 @@ dependencies = [
     "theflow>=0.8.6,<0.9.0",
     "trogon>=0.5.0,<0.6",
     "umap-learn==0.5.5",
-    "tavily-python>=0.4.0",
     "pydantic<=2.10.6",
 ]
 readme = "README.md"
@@ -76,22 +67,51 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-adv = [
+provider-openai = ["langchain-openai<2"]
+provider-azure = ["azure-ai-documentintelligence", "langchain-openai<2"]
+provider-cohere = ["cohere>=5.3.2,<6", "langchain-cohere<1"]
+provider-google = ["langchain-google-genai<5"]
+provider-anthropic = ["langchain-anthropic<2"]
+provider-mistral = ["langchain-mistralai<2"]
+provider-voyageai = ["voyageai>=0.3.0"]
+provider-ollama = ["langchain-ollama<2"]
+local-llama-cpp = ["llama-cpp-python<0.2.8"]
+embedding-fastembed = ["fastembed", "onnxruntime<v1.20"]
+embedding-huggingface = ["sentence-transformers"]
+store-elasticsearch = ["elasticsearch>=8.13.0,<8.14"]
+store-qdrant = ["llama-index-vector-stores-qdrant"]
+store-milvus = ["llama-index-vector-stores-milvus"]
+reader-unstructured = ["unstructured>=0.15.8,<0.16"]
+reader-docling = ["docling<=2.5.2", "docling-core==2.5.1"]
+reader-paddleocr = ["paddleocr[doc-parser]"]
+tools-web = [
     "duckduckgo-search>=6.1.0,<6.2",
-    "elasticsearch>=8.13.0,<8.14",
-    "fastembed",
-    "onnxruntime<v1.20",
     "googlesearch-python>=1.2.4,<1.3",
-    "llama-cpp-python<0.2.8",
-    "llama-index>=0.10.40,<0.11.0",
-    "llama-index-vector-stores-milvus",
-    "llama-index-vector-stores-qdrant",
-    "mcp[cli]>=1.0.0",
-    "sentence-transformers",
-    "tabulate",
-    "unstructured>=0.15.8,<0.16",
+    "tavily-python>=0.4.0",
     "wikipedia>=1.4.0,<1.5",
-    "voyageai>=0.3.0",
+]
+tools-mcp-cli = ["mcp[cli]>=1.0.0"]
+graphrag-light = [
+    "aioboto3",
+    "nano-vectordb",
+    "ollama",
+    "xxhash",
+    "lightrag-hku<=1.3.0",
+]
+graphrag-nano = ["nano-graphrag"]
+runtime-lite = [
+    "kotaemon[provider-openai,provider-cohere,provider-google,provider-ollama,provider-voyageai]",
+]
+runtime-ollama = ["kotaemon[provider-ollama]"]
+runtime-graphrag-light = ["kotaemon[runtime-lite,graphrag-light]"]
+runtime-graphrag-nano = ["kotaemon[runtime-lite,graphrag-nano]"]
+runtime-full = [
+    "kotaemon[runtime-lite,embedding-fastembed,embedding-huggingface,local-llama-cpp,reader-unstructured,store-elasticsearch,store-milvus,store-qdrant,tools-mcp-cli,tools-web,provider-anthropic,provider-mistral]",
+]
+adv = [
+    "kotaemon[embedding-fastembed,embedding-huggingface,local-llama-cpp,reader-unstructured,store-elasticsearch,store-milvus,store-qdrant,tools-mcp-cli,tools-web,provider-voyageai]",
+    "llama-index>=0.10.40,<0.11.0",
+    "tabulate",
 ]
 dev = [
     "black",
@@ -103,15 +123,9 @@ dev = [
     "pytest-mock",
     "sphinx",
 ]
-docling = ["docling<=2.5.2", "docling-core==2.5.1"]
-paddleocr = ["paddleocr[doc-parser]"]
-lightrag = [
-    "aioboto3",
-    "nano-vectordb",
-    "ollama",
-    "xxhash",
-    "lightrag-hku<=1.3.0",
-]
+docling = ["kotaemon[reader-docling]"]
+paddleocr = ["kotaemon[reader-paddleocr]"]
+lightrag = ["kotaemon[graphrag-light]"]
 all = ["kotaemon[adv,dev]"]
 
 [project.scripts]

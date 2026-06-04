@@ -43,15 +43,11 @@ COPY . /app
 COPY launch.sh /app/launch.sh
 COPY .env.example /app/.env
 
-# Install pip packages
+# Install the base app packages only. Optional extras are installed by later targets.
 RUN --mount=type=ssh  \
     --mount=type=cache,target=/root/.cache/uv  \
-    uv sync --frozen --no-cache \
+    uv sync --frozen --no-dev --package kotaemon --extra runtime-lite --package ktem --python /usr/local/bin/python \
     && uv pip install --python .venv "pdfservices-sdk@git+https://github.com/niallcm/pdfservices-python-sdk.git@bump-and-unfreeze-requirements"
-
-RUN --mount=type=ssh  \
-    --mount=type=cache,target=/root/.cache/uv  \
-    if [ "$TARGETARCH" = "amd64" ]; then uv pip install --python .venv "graphrag<=0.3.6" future; fi
 
 ENTRYPOINT ["sh", "/app/launch.sh"]
 
@@ -76,11 +72,15 @@ RUN --mount=type=ssh  \
     --mount=type=cache,target=/root/.cache/uv  \
     uv pip install --python .venv torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 
-# Install additional pip packages (adv + unstructured)
+# Install additional runtime packages for advanced document and retrieval support.
 RUN --mount=type=ssh  \
     --mount=type=cache,target=/root/.cache/uv  \
-    uv pip install --python .venv "libs/kotaemon[adv]" \
+    uv pip install --python .venv "libs/kotaemon[runtime-full]" \
     && uv pip install --python .venv unstructured[all-docs]
+
+RUN --mount=type=ssh  \
+    --mount=type=cache,target=/root/.cache/uv  \
+    if [ "$TARGETARCH" = "amd64" ]; then uv pip install --python .venv "graphrag<=0.3.6" future; fi
 
 # Download NLTK data from LlamaIndex
 RUN /app/.venv/bin/python -c "from llama_index.core.readers.base import BaseReader"
@@ -88,13 +88,13 @@ RUN /app/.venv/bin/python -c "from llama_index.core.readers.base import BaseRead
 # Optional reader: docling
 RUN --mount=type=ssh  \
     --mount=type=cache,target=/root/.cache/uv  \
-    uv pip install --python .venv "libs/kotaemon[docling]"
+    uv pip install --python .venv "libs/kotaemon[reader-docling]"
 
 # Optional RAG: lightRAG
 ENV USE_LIGHTRAG=true
 RUN --mount=type=ssh  \
     --mount=type=cache,target=/root/.cache/uv  \
-    uv pip install --python .venv "libs/kotaemon[lightrag]"
+    uv pip install --python .venv "libs/kotaemon[graphrag-light]"
 
 ENTRYPOINT ["sh", "/app/launch.sh"]
 
@@ -108,7 +108,7 @@ RUN --mount=type=ssh  \
     --mount=type=cache,target=/root/.cache/uv  \
     uv pip install --python .venv paddlepaddle-gpu==3.3.0 \
         -i "https://www.paddlepaddle.org.cn/packages/stable/cu${CUDA_VERSION}/" \
-    && uv pip install --python .venv "libs/kotaemon[paddleocr]"
+    && uv pip install --python .venv "libs/kotaemon[reader-paddleocr]"
 
 ENTRYPOINT ["sh", "/app/launch.sh"]
 
