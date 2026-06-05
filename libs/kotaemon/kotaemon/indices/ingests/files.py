@@ -14,6 +14,7 @@ from kotaemon.loaders import (
     AzureAIDocumentIntelligenceLoader,
     DirectoryReader,
     DoclingReader,
+    DocxReader,
     HtmlReader,
     MathpixPDFReader,
     MhtmlReader,
@@ -28,40 +29,72 @@ from kotaemon.loaders import (
 )
 
 web_reader = WebReader()
-unstructured = UnstructuredReader()
-adobe_reader = AdobeReader()
-azure_reader = AzureAIDocumentIntelligenceLoader(
-    endpoint=str(config("AZURE_DI_ENDPOINT", default="")),
-    credential=str(config("AZURE_DI_CREDENTIAL", default="")),
-    cache_dir=getattr(flowsettings, "KH_MARKDOWN_OUTPUT_DIR", None),
+unstructured = (
+    UnstructuredReader()
+    if getattr(flowsettings, "feature_available", lambda _: False)(
+        "reader-unstructured"
+    )
+    else None
 )
-docling_reader = DoclingReader()
-adobe_reader.vlm_endpoint = (
-    azure_reader.vlm_endpoint
-) = docling_reader.vlm_endpoint = getattr(flowsettings, "KH_VLM_ENDPOINT", "")
+adobe_reader = (
+    AdobeReader()
+    if getattr(flowsettings, "feature_available", lambda _: False)("reader-adobe")
+    else None
+)
+azure_reader = (
+    AzureAIDocumentIntelligenceLoader(
+        endpoint=str(config("AZURE_DI_ENDPOINT", default="")),
+        credential=str(config("AZURE_DI_CREDENTIAL", default="")),
+        cache_dir=getattr(flowsettings, "KH_MARKDOWN_OUTPUT_DIR", None),
+    )
+    if getattr(flowsettings, "feature_available", lambda _: False)("reader-azure-di")
+    else None
+)
+docling_reader = (
+    DoclingReader()
+    if getattr(flowsettings, "feature_available", lambda _: False)("reader-docling")
+    else None
+)
+for reader in (adobe_reader, azure_reader, docling_reader):
+    if reader is not None:
+        reader.vlm_endpoint = getattr(flowsettings, "KH_VLM_ENDPOINT", "")
 
 paddle_device = str(config("PADDLE_DEVICE", default="gpu"))
-paddle_struct_reader = PPStructureV3Reader(device=paddle_device)
-paddle_vl_reader = PaddleOCRVLReader(device=paddle_device)
+paddle_struct_reader = (
+    PPStructureV3Reader(device=paddle_device)
+    if getattr(flowsettings, "feature_available", lambda _: False)("reader-paddleocr")
+    else None
+)
+paddle_vl_reader = (
+    PaddleOCRVLReader(device=paddle_device)
+    if getattr(flowsettings, "feature_available", lambda _: False)("reader-paddleocr")
+    else None
+)
 
 
 KH_DEFAULT_FILE_EXTRACTORS: dict[str, BaseReader] = {
     ".xlsx": PandasExcelReader(),
-    ".docx": unstructured,
-    ".pptx": unstructured,
-    ".xls": unstructured,
-    ".doc": unstructured,
+    ".docx": DocxReader(),
     ".html": HtmlReader(),
     ".mhtml": MhtmlReader(),
-    ".png": unstructured,
-    ".jpeg": unstructured,
-    ".jpg": unstructured,
-    ".tiff": unstructured,
-    ".tif": unstructured,
     ".pdf": QualityGatedPDFReader(),
     ".txt": TxtReader(),
     ".md": TxtReader(),
 }
+if unstructured is not None:
+    KH_DEFAULT_FILE_EXTRACTORS.update(
+        {
+            ".docx": unstructured,
+            ".pptx": unstructured,
+            ".xls": unstructured,
+            ".doc": unstructured,
+            ".png": unstructured,
+            ".jpeg": unstructured,
+            ".jpg": unstructured,
+            ".tiff": unstructured,
+            ".tif": unstructured,
+        }
+    )
 
 
 class DocumentIngestor(BaseComponent):

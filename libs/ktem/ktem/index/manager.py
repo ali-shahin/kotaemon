@@ -152,7 +152,11 @@ class IndexManager:
 
         # developer-defined custom index types
         for index_str in settings.KH_INDEX_TYPES:
-            cls: Type[BaseIndex] = import_dotted_string(index_str, safe=False)
+            try:
+                cls: Type[BaseIndex] = import_dotted_string(index_str, safe=False)
+            except (ImportError, ModuleNotFoundError) as e:
+                print(f"Skip unavailable index type {index_str}: {e}")
+                continue
             self._index_types[f"{cls.__module__}.{cls.__qualname__}"] = cls
 
     def exists(self, id: Optional[int] = None, name: Optional[str] = None) -> bool:

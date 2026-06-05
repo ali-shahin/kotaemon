@@ -1,5 +1,6 @@
 import os
 from importlib.metadata import version
+from importlib.util import find_spec
 from inspect import currentframe, getframeinfo
 from pathlib import Path
 
@@ -84,9 +85,152 @@ KH_FEATURE_USER_MANAGEMENT_PASSWORD = str(
 KH_ENABLE_ALEMBIC = False
 KH_DATABASE = f"sqlite:///{KH_USER_DATA_DIR / 'sql.db'}"
 KH_FILESTORAGE_PATH = str(KH_USER_DATA_DIR / "files")
+
+FEATURE_MODULES = {
+    "provider-openai": ("langchain_openai",),
+    "provider-azure": ("langchain_openai", "azure.ai.documentintelligence"),
+    "provider-cohere": ("cohere", "langchain_cohere"),
+    "provider-google": ("langchain_google_genai",),
+    "provider-anthropic": ("langchain_anthropic",),
+    "provider-mistral": ("langchain_mistralai",),
+    "provider-voyageai": ("voyageai",),
+    "provider-ollama": ("langchain_ollama",),
+    "embedding-fastembed": ("fastembed",),
+    "embedding-huggingface": ("sentence_transformers",),
+    "reader-adobe": ("adobe.pdfservices.operation",),
+    "reader-azure-di": ("azure.ai.documentintelligence",),
+    "reader-docling": ("docling",),
+    "reader-paddleocr": ("paddleocr",),
+    "reader-unstructured": ("unstructured",),
+    "tools-web": ("tavily",),
+    "graphrag-light": ("lightrag",),
+    "graphrag-ms": ("graphrag",),
+    "graphrag-nano": ("nano_graphrag",),
+}
+
+FEATURE_EXTRAS = {
+    "provider-openai": "kotaemon[provider-openai]",
+    "provider-azure": "kotaemon[provider-azure]",
+    "provider-cohere": "kotaemon[provider-cohere]",
+    "provider-google": "kotaemon[provider-google]",
+    "provider-anthropic": "kotaemon[provider-anthropic]",
+    "provider-mistral": "kotaemon[provider-mistral]",
+    "provider-voyageai": "kotaemon[provider-voyageai]",
+    "provider-ollama": "kotaemon[provider-ollama]",
+    "embedding-fastembed": "kotaemon[embedding-fastembed]",
+    "embedding-huggingface": "kotaemon[embedding-huggingface]",
+    "reader-adobe": "pdfservices-sdk",
+    "reader-azure-di": "kotaemon[provider-azure]",
+    "reader-docling": "kotaemon[reader-docling]",
+    "reader-paddleocr": "kotaemon[reader-paddleocr]",
+    "reader-unstructured": "kotaemon[reader-unstructured]",
+    "tools-web": "kotaemon[tools-web]",
+    "graphrag-light": "kotaemon[graphrag-light]",
+    "graphrag-ms": "manual install: graphrag<=0.3.6 future",
+    "graphrag-nano": "kotaemon[graphrag-nano]",
+}
+
+PROFILE_FEATURES: dict[str, set[str]] = {
+    "core": set(),
+    "ollama": {"provider-ollama"},
+    "ollama-docs": {
+        "provider-ollama",
+        "embedding-fastembed",
+        "reader-docling",
+        "reader-unstructured",
+    },
+    "lite": {
+        "provider-openai",
+        "provider-cohere",
+        "provider-google",
+        "provider-ollama",
+        "provider-voyageai",
+    },
+    "graphrag-light": {
+        "provider-openai",
+        "provider-cohere",
+        "provider-google",
+        "provider-ollama",
+        "provider-voyageai",
+        "graphrag-light",
+    },
+    "graphrag-nano": {
+        "provider-openai",
+        "provider-cohere",
+        "provider-google",
+        "provider-ollama",
+        "provider-voyageai",
+        "graphrag-nano",
+    },
+    "full": set(FEATURE_MODULES),
+}
+
+
+def _csv_config(name: str, default: str = "") -> set[str]:
+    value = str(config(name, default=default) or "")
+    return {item.strip() for item in value.replace(",", " ").split() if item.strip()}
+
+
+def _has_module(module: str) -> bool:
+    try:
+        return find_spec(module) is not None
+    except (ImportError, AttributeError, ValueError):
+        return False
+
+
+def _env_bool_override(name: str, feature: str, features: set[str]) -> None:
+    if name not in os.environ:
+        return
+    if config(name, default=False, cast=bool):
+        features.add(feature)
+    else:
+        features.discard(feature)
+
+
+KH_APP_PROFILE = str(config("KH_APP_PROFILE", default="lite")).strip() or "lite"
+if KH_APP_PROFILE not in PROFILE_FEATURES:
+    KH_APP_PROFILE = "lite"
+
+KH_ENABLE_FEATURES = _csv_config("KH_ENABLE_FEATURES")
+KH_DISABLE_FEATURES = _csv_config("KH_DISABLE_FEATURES")
+KH_ENABLED_FEATURES = set(PROFILE_FEATURES[KH_APP_PROFILE])
+KH_ENABLED_FEATURES.update(KH_ENABLE_FEATURES)
+KH_ENABLED_FEATURES.difference_update(KH_DISABLE_FEATURES)
+
+_env_bool_override("USE_LIGHTRAG", "graphrag-light", KH_ENABLED_FEATURES)
+_env_bool_override("USE_NANO_GRAPHRAG", "graphrag-nano", KH_ENABLED_FEATURES)
+_env_bool_override("USE_MS_GRAPHRAG", "graphrag-ms", KH_ENABLED_FEATURES)
+
+KH_FEATURE_STATUS = {}
+for feature, modules in FEATURE_MODULES.items():
+    missing = [module for module in modules if not _has_module(module)]
+    enabled = feature in KH_ENABLED_FEATURES
+    KH_FEATURE_STATUS[feature] = {
+        "enabled": enabled,
+        "available": enabled and not missing,
+        "missing": missing,
+        "install": FEATURE_EXTRAS.get(feature, ""),
+    }
+
+KH_UNAVAILABLE_FEATURES = {
+    feature: status
+    for feature, status in KH_FEATURE_STATUS.items()
+    if status["enabled"] and not status["available"]
+}
+
+
+def feature_enabled(feature: str) -> bool:
+    return feature in KH_ENABLED_FEATURES
+
+
+def feature_available(feature: str) -> bool:
+    return bool(KH_FEATURE_STATUS.get(feature, {}).get("available", False))
+
+
 KH_WEB_SEARCH_BACKEND = (
     "kotaemon.indices.retrievers.tavily_web_search.WebSearch"
-    # "kotaemon.indices.retrievers.jina_web_search.WebSearch"
+    if feature_available("tools-web")
+    else None
 )
 
 KH_DOCSTORE = {
@@ -106,9 +250,16 @@ KH_LLMS = {}
 KH_EMBEDDINGS = {}
 KH_RERANKINGS = {}
 
-# populate options from config
-if config("AZURE_OPENAI_API_KEY", default="") and config(
-    "AZURE_OPENAI_ENDPOINT", default=""
+# populate options from enabled and installed features
+OPENAI_DEFAULT = "<YOUR_OPENAI_KEY>"
+OPENAI_API_KEY = config("OPENAI_API_KEY", default=OPENAI_DEFAULT)
+GOOGLE_API_KEY = config("GOOGLE_API_KEY", default="your-key")
+IS_OPENAI_DEFAULT = len(OPENAI_API_KEY) > 0 and OPENAI_API_KEY != OPENAI_DEFAULT
+
+if (
+    feature_available("provider-azure")
+    and config("AZURE_OPENAI_API_KEY", default="")
+    and config("AZURE_OPENAI_ENDPOINT", default="")
 ):
     if config("AZURE_OPENAI_CHAT_DEPLOYMENT", default=""):
         KH_LLMS["azure"] = {
@@ -140,12 +291,7 @@ if config("AZURE_OPENAI_API_KEY", default="") and config(
             "default": False,
         }
 
-OPENAI_DEFAULT = "<YOUR_OPENAI_KEY>"
-OPENAI_API_KEY = config("OPENAI_API_KEY", default=OPENAI_DEFAULT)
-GOOGLE_API_KEY = config("GOOGLE_API_KEY", default="your-key")
-IS_OPENAI_DEFAULT = len(OPENAI_API_KEY) > 0 and OPENAI_API_KEY != OPENAI_DEFAULT
-
-if OPENAI_API_KEY:
+if feature_available("provider-openai") and OPENAI_API_KEY:
     KH_LLMS["openai"] = {
         "spec": {
             "__type__": "kotaemon.llms.ChatOpenAI",
@@ -173,7 +319,7 @@ if OPENAI_API_KEY:
     }
 
 VOYAGE_API_KEY = config("VOYAGE_API_KEY", default="")
-if VOYAGE_API_KEY:
+if feature_available("provider-voyageai") and VOYAGE_API_KEY:
     KH_EMBEDDINGS["voyageai"] = {
         "spec": {
             "__type__": "kotaemon.embeddings.VoyageAIEmbeddings",
@@ -191,7 +337,10 @@ if VOYAGE_API_KEY:
         "default": False,
     }
 
-if config("LOCAL_MODEL", default=""):
+LOCAL_MODEL = config("LOCAL_MODEL", default="")
+if feature_available("provider-ollama") and (
+    LOCAL_MODEL or KH_APP_PROFILE.startswith("ollama")
+):
     KH_LLMS["ollama"] = {
         "spec": {
             "__type__": "kotaemon.llms.ChatOpenAI",
@@ -199,7 +348,7 @@ if config("LOCAL_MODEL", default=""):
             "model": config("LOCAL_MODEL", default="qwen2.5:7b"),
             "api_key": "ollama",
         },
-        "default": False,
+        "default": not IS_OPENAI_DEFAULT,
     }
     KH_LLMS["ollama-long-context"] = {
         "spec": {
@@ -210,7 +359,6 @@ if config("LOCAL_MODEL", default=""):
         },
         "default": False,
     }
-
     KH_EMBEDDINGS["ollama"] = {
         "spec": {
             "__type__": "kotaemon.embeddings.OpenAIEmbeddings",
@@ -218,103 +366,98 @@ if config("LOCAL_MODEL", default=""):
             "model": config("LOCAL_MODEL_EMBEDDINGS", default="nomic-embed-text"),
             "api_key": "ollama",
         },
-        "default": False,
+        "default": not KH_EMBEDDINGS,
     }
+
+if feature_available("embedding-fastembed"):
     KH_EMBEDDINGS["fast_embed"] = {
         "spec": {
             "__type__": "kotaemon.embeddings.FastEmbedEmbeddings",
             "model_name": "BAAI/bge-base-en-v1.5",
         },
-        "default": False,
+        "default": not KH_EMBEDDINGS,
     }
 
-# additional LLM configurations
-KH_LLMS["claude"] = {
-    "spec": {
-        "__type__": "kotaemon.llms.chats.LCAnthropicChat",
-        "model_name": "claude-3-5-sonnet-20240620",
-        "api_key": "your-key",
-    },
-    "default": False,
-}
-KH_LLMS["google"] = {
-    "spec": {
-        "__type__": "kotaemon.llms.chats.LCGeminiChat",
-        "model_name": "gemini-1.5-flash",
-        "api_key": GOOGLE_API_KEY,
-    },
-    "default": not IS_OPENAI_DEFAULT,
-}
-KH_LLMS["groq"] = {
-    "spec": {
-        "__type__": "kotaemon.llms.ChatOpenAI",
-        "base_url": "https://api.groq.com/openai/v1",
-        "model": "llama-3.1-8b-instant",
-        "api_key": "your-key",
-    },
-    "default": False,
-}
-KH_LLMS["cohere"] = {
-    "spec": {
-        "__type__": "kotaemon.llms.chats.LCCohereChat",
-        "model_name": "command-r-plus-08-2024",
-        "api_key": config("COHERE_API_KEY", default="your-key"),
-    },
-    "default": False,
-}
-KH_LLMS["mistral"] = {
-    "spec": {
-        "__type__": "kotaemon.llms.ChatOpenAI",
-        "base_url": "https://api.mistral.ai/v1",
-        "model": "ministral-8b-latest",
-        "api_key": config("MISTRAL_API_KEY", default="your-key"),
-    },
-    "default": False,
-}
-
-# additional embeddings configurations
-KH_EMBEDDINGS["cohere"] = {
-    "spec": {
-        "__type__": "kotaemon.embeddings.LCCohereEmbeddings",
-        "model": "embed-multilingual-v3.0",
-        "cohere_api_key": config("COHERE_API_KEY", default="your-key"),
-        "user_agent": "default",
-    },
-    "default": False,
-}
-KH_EMBEDDINGS["google"] = {
-    "spec": {
-        "__type__": "kotaemon.embeddings.LCGoogleEmbeddings",
-        "model": "models/text-embedding-004",
-        "google_api_key": GOOGLE_API_KEY,
-    },
-    "default": not IS_OPENAI_DEFAULT,
-}
-KH_EMBEDDINGS["mistral"] = {
-    "spec": {
-        "__type__": "kotaemon.embeddings.LCMistralEmbeddings",
-        "model": "mistral-embed",
-        "api_key": config("MISTRAL_API_KEY", default="your-key"),
-    },
-    "default": False,
-}
-# KH_EMBEDDINGS["huggingface"] = {
-#     "spec": {
-#         "__type__": "kotaemon.embeddings.LCHuggingFaceEmbeddings",
-#         "model_name": "sentence-transformers/all-mpnet-base-v2",
-#     },
-#     "default": False,
-# }
-
-# default reranking models
-KH_RERANKINGS["cohere"] = {
-    "spec": {
-        "__type__": "kotaemon.rerankings.CohereReranking",
-        "model_name": "rerank-v4.0-fast",
-        "cohere_api_key": config("COHERE_API_KEY", default=""),
-    },
-    "default": True,
-}
+if feature_available("provider-anthropic"):
+    KH_LLMS["claude"] = {
+        "spec": {
+            "__type__": "kotaemon.llms.chats.LCAnthropicChat",
+            "model_name": "claude-3-5-sonnet-20240620",
+            "api_key": "your-key",
+        },
+        "default": False,
+    }
+if feature_available("provider-google"):
+    KH_LLMS["google"] = {
+        "spec": {
+            "__type__": "kotaemon.llms.chats.LCGeminiChat",
+            "model_name": "gemini-1.5-flash",
+            "api_key": GOOGLE_API_KEY,
+        },
+        "default": not IS_OPENAI_DEFAULT,
+    }
+    KH_EMBEDDINGS["google"] = {
+        "spec": {
+            "__type__": "kotaemon.embeddings.LCGoogleEmbeddings",
+            "model": "models/text-embedding-004",
+            "google_api_key": GOOGLE_API_KEY,
+        },
+        "default": not IS_OPENAI_DEFAULT,
+    }
+if feature_available("provider-openai"):
+    KH_LLMS["groq"] = {
+        "spec": {
+            "__type__": "kotaemon.llms.ChatOpenAI",
+            "base_url": "https://api.groq.com/openai/v1",
+            "model": "llama-3.1-8b-instant",
+            "api_key": "your-key",
+        },
+        "default": False,
+    }
+if feature_available("provider-cohere"):
+    KH_LLMS["cohere"] = {
+        "spec": {
+            "__type__": "kotaemon.llms.chats.LCCohereChat",
+            "model_name": "command-r-plus-08-2024",
+            "api_key": config("COHERE_API_KEY", default="your-key"),
+        },
+        "default": False,
+    }
+    KH_EMBEDDINGS["cohere"] = {
+        "spec": {
+            "__type__": "kotaemon.embeddings.LCCohereEmbeddings",
+            "model": "embed-multilingual-v3.0",
+            "cohere_api_key": config("COHERE_API_KEY", default="your-key"),
+            "user_agent": "default",
+        },
+        "default": False,
+    }
+    KH_RERANKINGS["cohere"] = {
+        "spec": {
+            "__type__": "kotaemon.rerankings.CohereReranking",
+            "model_name": "rerank-v4.0-fast",
+            "cohere_api_key": config("COHERE_API_KEY", default=""),
+        },
+        "default": True,
+    }
+if feature_available("provider-mistral"):
+    KH_LLMS["mistral"] = {
+        "spec": {
+            "__type__": "kotaemon.llms.ChatOpenAI",
+            "base_url": "https://api.mistral.ai/v1",
+            "model": "ministral-8b-latest",
+            "api_key": config("MISTRAL_API_KEY", default="your-key"),
+        },
+        "default": False,
+    }
+    KH_EMBEDDINGS["mistral"] = {
+        "spec": {
+            "__type__": "kotaemon.embeddings.LCMistralEmbeddings",
+            "model": "mistral-embed",
+            "api_key": config("MISTRAL_API_KEY", default="your-key"),
+        },
+        "default": False,
+    }
 
 KH_REASONINGS = [
     "ktem.reasoning.simple.FullQAPipeline",
@@ -353,10 +496,14 @@ SETTINGS_REASONING = {
     },
 }
 
-USE_GLOBAL_GRAPHRAG = config("USE_GLOBAL_GRAPHRAG", default=True, cast=bool)
-USE_NANO_GRAPHRAG = config("USE_NANO_GRAPHRAG", default=False, cast=bool)
-USE_LIGHTRAG = config("USE_LIGHTRAG", default=True, cast=bool)
-USE_MS_GRAPHRAG = config("USE_MS_GRAPHRAG", default=True, cast=bool)
+USE_LIGHTRAG = feature_available("graphrag-light")
+USE_NANO_GRAPHRAG = feature_available("graphrag-nano")
+USE_MS_GRAPHRAG = feature_available("graphrag-ms")
+USE_GLOBAL_GRAPHRAG = config(
+    "USE_GLOBAL_GRAPHRAG",
+    default=USE_LIGHTRAG or USE_NANO_GRAPHRAG or USE_MS_GRAPHRAG,
+    cast=bool,
+)
 
 GRAPHRAG_INDEX_TYPES = []
 
@@ -366,6 +513,51 @@ if USE_NANO_GRAPHRAG:
     GRAPHRAG_INDEX_TYPES.append("ktem.index.file.graph.NanoGraphRAGIndex")
 if USE_LIGHTRAG:
     GRAPHRAG_INDEX_TYPES.append("ktem.index.file.graph.LightRAGIndex")
+
+KH_GRAPH_BACKENDS = {
+    "ms": USE_MS_GRAPHRAG,
+    "nano": USE_NANO_GRAPHRAG,
+    "light": USE_LIGHTRAG,
+}
+
+KH_AVAILABLE_READER_MODES = [
+    ("Default (open-source)", "default"),
+]
+if feature_available("reader-adobe"):
+    KH_AVAILABLE_READER_MODES.append(("Adobe API (figure+table extraction)", "adobe"))
+if feature_available("reader-azure-di"):
+    KH_AVAILABLE_READER_MODES.append(
+        ("Azure AI Document Intelligence (figure+table extraction)", "azure-di")
+    )
+if feature_available("reader-docling"):
+    KH_AVAILABLE_READER_MODES.append(("Docling (figure+table extraction)", "docling"))
+if feature_available("reader-paddleocr"):
+    KH_AVAILABLE_READER_MODES.extend(
+        [
+            ("PaddleOCR PPStructureV3 (table+figure extraction)", "paddle-struct"),
+            ("PaddleOCR-VL (VLM document parsing)", "paddle-vl"),
+        ]
+    )
+
+KH_DISABLED_READER_MODES = [
+    {
+        "feature": feature,
+        "missing": status["missing"],
+        "install": status["install"],
+    }
+    for feature, status in KH_FEATURE_STATUS.items()
+    if feature.startswith("reader-") and status["enabled"] and not status["available"]
+]
+KH_READER_MODE_CHOICES = [
+    *KH_AVAILABLE_READER_MODES,
+    *[
+        (
+            f"Disabled: {item['feature']} (install {item['install']})",
+            f"disabled:{item['feature']}",
+        )
+        for item in KH_DISABLED_READER_MODES
+    ],
+]
 
 KH_INDEX_TYPES = [
     "ktem.index.file.FileIndex",

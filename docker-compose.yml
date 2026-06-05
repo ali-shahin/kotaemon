@@ -3,7 +3,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      target: ${KH_TARGET_IMAGE:-lite} # change to: lite | full | ollama | paddle
+      target: ${KH_TARGET_IMAGE:-lite} # full | graphrag-light | ollama-docs | ollama | paddle
+      args:
+        KH_APP_EXTRAS: ${KH_APP_EXTRAS:-runtime-lite}
+        KH_APP_PROFILE: ${KH_APP_PROFILE:-lite}
     # To use a prebuilt image instead of building locally, comment out `build`
     # above and uncomment the line below:
     # image: ghcr.io/cinnamon/kotaemon:main-lite
@@ -14,6 +17,9 @@ services:
     environment:
       GRADIO_SERVER_NAME: "0.0.0.0"
       GRADIO_SERVER_PORT: "7860"
+      KH_APP_PROFILE: ${KH_APP_PROFILE:-lite}
+      KH_ENABLE_FEATURES: ${KH_ENABLE_FEATURES:-}
+      KH_DISABLE_FEATURES: ${KH_DISABLE_FEATURES:-}
     env_file:
       - path: .env # config seed on first run; create from .env.example
         required: false

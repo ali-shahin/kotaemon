@@ -233,6 +233,7 @@ class DocumentRetrievalPipeline(BaseFileIndexRetriever):
             logger.error(e)
             reranking_llm = None
             reranking_llm_choices = []
+        reranking_choices = list(reranking_models_manager.options().keys())
 
         return {
             "reranking_llm": {
@@ -267,7 +268,7 @@ class DocumentRetrievalPipeline(BaseFileIndexRetriever):
             },
             "use_reranking": {
                 "name": "Use reranking",
-                "value": True,
+                "value": bool(reranking_choices),
                 "choices": [True, False],
                 "component": "checkbox",
             },
@@ -288,6 +289,16 @@ class DocumentRetrievalPipeline(BaseFileIndexRetriever):
             kwargs: other arguments
         """
         use_llm_reranking = user_settings.get("use_llm_reranking", False)
+        use_reranking = user_settings.get("use_reranking", False)
+        rerankers = []
+        if use_reranking and reranking_models_manager.options():
+            rerankers = [
+                reranking_models_manager[
+                    index_settings.get(
+                        "reranking", reranking_models_manager.get_default_name()
+                    )
+                ]
+            ]
 
         retriever = cls(
             get_extra_table=user_settings["prioritize_table"],
@@ -300,15 +311,9 @@ class DocumentRetrievalPipeline(BaseFileIndexRetriever):
             ],
             retrieval_mode=user_settings["retrieval_mode"],
             llm_scorer=(LLMTrulensScoring() if use_llm_reranking else None),
-            rerankers=[
-                reranking_models_manager[
-                    index_settings.get(
-                        "reranking", reranking_models_manager.get_default_name()
-                    )
-                ]
-            ],
+            rerankers=rerankers,
         )
-        if not user_settings["use_reranking"]:
+        if not use_reranking:
             retriever.rerankers = []  # type: ignore
 
         for reranker in retriever.rerankers:
@@ -676,13 +681,13 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
     def readers(self):
         readers = deepcopy(KH_DEFAULT_FILE_EXTRACTORS)
         print("reader_mode", self.reader_mode)
-        if self.reader_mode == "adobe":
+        if self.reader_mode == "adobe" and adobe_reader is not None:
             readers[".pdf"] = adobe_reader
-        elif self.reader_mode == "azure-di":
+        elif self.reader_mode == "azure-di" and azure_reader is not None:
             readers[".pdf"] = azure_reader
-        elif self.reader_mode == "docling":
+        elif self.reader_mode == "docling" and docling_reader is not None:
             readers[".pdf"] = docling_reader
-        elif self.reader_mode == "paddle-struct":
+        elif self.reader_mode == "paddle-struct" and paddle_struct_reader is not None:
             readers.update(
                 {
                     ".pdf": paddle_struct_reader,
@@ -693,7 +698,7 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
                     ".tif": paddle_struct_reader,
                 }
             )
-        elif self.reader_mode == "paddle-vl":
+        elif self.reader_mode == "paddle-vl" and paddle_vl_reader is not None:
             readers.update(
                 {
                     ".pdf": paddle_vl_reader,
@@ -712,24 +717,16 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
 
     @classmethod
     def get_user_settings(cls):
+        choices = getattr(
+            settings,
+            "KH_READER_MODE_CHOICES",
+            [("Default (open-source)", "default")],
+        )
         return {
             "reader_mode": {
                 "name": "File loader",
                 "value": "default",
-                "choices": [
-                    ("Default (open-source)", "default"),
-                    ("Adobe API (figure+table extraction)", "adobe"),
-                    (
-                        "Azure AI Document Intelligence (figure+table extraction)",
-                        "azure-di",
-                    ),
-                    ("Docling (figure+table extraction)", "docling"),
-                    (
-                        "PaddleOCR PPStructureV3 (table+figure extraction)",
-                        "paddle-struct",
-                    ),
-                    ("PaddleOCR-VL (VLM document parsing)", "paddle-vl"),
-                ],
+                "choices": choices,
                 "component": "dropdown",
             },
         }
@@ -737,6 +734,16 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
     @classmethod
     def get_pipeline(cls, user_settings, index_settings) -> BaseFileIndexIndexing:
         use_quick_index_mode = user_settings.get("quick_index_mode", False)
+        reader_mode = user_settings.get("reader_mode", "default")
+        if reader_mode.startswith("disabled:"):
+            feature = reader_mode.removeprefix("disabled:")
+            status = getattr(settings, "KH_FEATURE_STATUS", {}).get(feature, {})
+            install = status.get("install", feature)
+            missing = ", ".join(status.get("missing", []))
+            raise ValueError(
+                f"{feature} is enabled but unavailable. Install {install}"
+                + (f" to provide missing modules: {missing}." if missing else ".")
+            )
         print("use_quick_index_mode", use_quick_index_mode)
         obj = cls(
             embedding=embedding_models_manager[
@@ -745,7 +752,7 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
                 )
             ],
             run_embedding_in_thread=use_quick_index_mode,
-            reader_mode=user_settings.get("reader_mode", "default"),
+            reader_mode=reader_mode,
         )
         return obj
 
@@ -775,7 +782,9 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
             if reader is None:
                 raise NotImplementedError(
                     f"No supported pipeline to index {file_path.name}. Please specify "
-                    "the suitable pipeline for this file type in the settings."
+                    "the suitable pipeline for this file type in the settings or "
+                    "enable a reader feature such as reader-unstructured or "
+                    "reader-docling."
                 )
 
         print(f"Chunk size: {chunk_size}, chunk overlap: {chunk_overlap}")

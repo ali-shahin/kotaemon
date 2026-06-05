@@ -3286,6 +3286,123 @@ lightrag = [
 paddleocr = [
     { name = "paddleocr", extra = ["doc-parser"] },
 ]
+provider-anthropic = [
+    { name = "langchain-anthropic" },
+]
+provider-azure = [
+    { name = "azure-ai-documentintelligence" },
+    { name = "langchain-openai" },
+]
+provider-cohere = [
+    { name = "cohere" },
+    { name = "langchain-cohere" },
+]
+provider-google = [
+    { name = "langchain-google-genai" },
+]
+provider-mistral = [
+    { name = "langchain-mistralai" },
+]
+provider-ollama = [
+    { name = "langchain-ollama" },
+]
+provider-openai = [
+    { name = "langchain-openai" },
+]
+provider-voyageai = [
+    { name = "voyageai" },
+]
+reader-docling = [
+    { name = "docling" },
+]
+reader-paddleocr = [
+    { name = "paddleocr", extra = ["doc-parser"] },
+]
+reader-unstructured = [
+    { name = "unstructured" },
+]
+runtime-full = [
+    { name = "cohere" },
+    { name = "docling" },
+    { name = "duckduckgo-search" },
+    { name = "elasticsearch" },
+    { name = "fastembed" },
+    { name = "googlesearch-python" },
+    { name = "langchain-anthropic" },
+    { name = "langchain-cohere" },
+    { name = "langchain-google-genai" },
+    { name = "langchain-mistralai" },
+    { name = "langchain-ollama" },
+    { name = "langchain-openai" },
+    { name = "llama-cpp-python" },
+    { name = "llama-index-vector-stores-milvus" },
+    { name = "llama-index-vector-stores-qdrant" },
+    { name = "mcp", extra = ["cli"] },
+    { name = "onnxruntime" },
+    { name = "sentence-transformers" },
+    { name = "tavily-python" },
+    { name = "unstructured" },
+    { name = "voyageai" },
+    { name = "wikipedia" },
+]
+runtime-graphrag-light = [
+    { name = "aioboto3" },
+    { name = "cohere" },
+    { name = "langchain-cohere" },
+    { name = "langchain-google-genai" },
+    { name = "langchain-ollama" },
+    { name = "langchain-openai" },
+    { name = "lightrag-hku" },
+    { name = "nano-vectordb" },
+    { name = "ollama" },
+    { name = "voyageai" },
+    { name = "xxhash" },
+]
+runtime-graphrag-nano = [
+    { name = "cohere" },
+    { name = "langchain-cohere" },
+    { name = "langchain-google-genai" },
+    { name = "langchain-ollama" },
+    { name = "langchain-openai" },
+    { name = "nano-graphrag" },
+    { name = "voyageai" },
+]
+runtime-lite = [
+    { name = "cohere" },
+    { name = "langchain-cohere" },
+    { name = "langchain-google-genai" },
+    { name = "langchain-ollama" },
+    { name = "langchain-openai" },
+    { name = "voyageai" },
+]
+runtime-ollama = [
+    { name = "langchain-ollama" },
+]
+runtime-ollama-docs = [
+    { name = "docling" },
+    { name = "fastembed" },
+    { name = "langchain-ollama" },
+    { name = "onnxruntime" },
+    { name = "unstructured" },
+]
+store-elasticsearch = [
+    { name = "elasticsearch" },
+]
+store-milvus = [
+    { name = "llama-index-vector-stores-milvus" },
+]
+store-qdrant = [
+    { name = "llama-index-vector-stores-qdrant" },
+]
+tools-mcp-cli = [
+    { name = "mcp", extra = ["cli"] },
+]
+tools-web = [
+    { name = "duckduckgo-search" },
+    { name = "googlesearch-python" },
+    { name = "tavily-python" },
+    { name = "wikipedia" },
+]
 
 [package.metadata]
 requires-dist = [
@@ -3310,6 +3427,16 @@ requires-dist = [
     { name = "html2text", specifier = "==2024.2.26" },
     { name = "ipython", marker = "extra == 'dev'" },
     { name = "kotaemon", extras = ["adv", "dev"], marker = "extra == 'all'", editable = "libs/kotaemon" },
+    { name = "kotaemon", extras = ["embedding-fastembed", "embedding-huggingface", "local-llama-cpp", "provider-anthropic", "provider-mistral", "reader-docling", "reader-unstructured", "runtime-lite", "store-elasticsearch", "store-milvus", "store-qdrant", "tools-mcp-cli", "tools-web"], marker = "extra == 'runtime-full'", editable = "libs/kotaemon" },
+    { name = "kotaemon", extras = ["embedding-fastembed", "embedding-huggingface", "local-llama-cpp", "provider-voyageai", "reader-unstructured", "store-elasticsearch", "store-milvus", "store-qdrant", "tools-mcp-cli", "tools-web"], marker = "extra == 'adv'", editable = "libs/kotaemon" },
+    { name = "kotaemon", extras = ["embedding-fastembed", "reader-docling", "reader-unstructured", "runtime-ollama"], marker = "extra == 'runtime-ollama-docs'", editable = "libs/kotaemon" },
+    { name = "kotaemon", extras = ["graphrag-light"], marker = "extra == 'lightrag'", editable = "libs/kotaemon" },
+    { name = "kotaemon", extras = ["graphrag-light", "runtime-lite"], marker = "extra == 'runtime-graphrag-light'", editable = "libs/kotaemon" },
+    { name = "kotaemon", extras = ["graphrag-nano", "runtime-lite"], marker = "extra == 'runtime-graphrag-nano'", editable = "libs/kotaemon" },
+    { name = "kotaemon", extras = ["provider-cohere", "provider-google", "provider-ollama", "provider-openai", "provider-voyageai"], marker = "extra == 'runtime-lite'", editable = "libs/kotaemon" },
+    { name = "kotaemon", extras = ["provider-ollama"], marker = "extra == 'runtime-ollama'", editable = "libs/kotaemon" },
+    { name = "kotaemon", extras = ["reader-docling"], marker = "extra == 'docling'", editable = "libs/kotaemon" },
+    { name = "kotaemon", extras = ["reader-paddleocr"], marker = "extra == 'paddleocr'", editable = "libs/kotaemon" },
     { name = "langchain", specifier = "<2" },
     { name = "langchain-anthropic", specifier = "<2" },
     { name = "langchain-cohere", specifier = "<1" },
@@ -3362,7 +3489,7 @@ requires-dist = [
     { name = "wikipedia", marker = "extra == 'adv'", specifier = ">=1.4.0,<1.5" },
     { name = "xxhash", marker = "extra == 'lightrag'" },
 ]
-provides-extras = ["adv", "dev", "docling", "paddleocr", "lightrag", "all"]
+provides-extras = ["provider-openai", "provider-azure", "provider-cohere", "provider-google", "provider-anthropic", "provider-mistral", "provider-voyageai", "provider-ollama", "local-llama-cpp", "embedding-fastembed", "embedding-huggingface", "store-elasticsearch", "store-qdrant", "store-milvus", "reader-unstructured", "reader-docling", "reader-paddleocr", "tools-web", "tools-mcp-cli", "graphrag-light", "graphrag-nano", "runtime-core", "runtime-lite", "runtime-ollama", "runtime-ollama-docs", "runtime-graphrag-light", "runtime-graphrag-nano", "runtime-full", "adv", "dev", "docling", "paddleocr", "lightrag", "all"]
 
 [[package]]
 name = "kotaemon-app"

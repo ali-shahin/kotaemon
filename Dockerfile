@@ -19,12 +19,16 @@ RUN apt-get update -qqy && \
 # Setup args
 ARG TARGETPLATFORM
 ARG TARGETARCH
+ARG KH_APP_EXTRAS=runtime-lite
+ARG KH_APP_PROFILE=lite
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONIOENCODING=UTF-8
 ENV TARGETARCH=${TARGETARCH}
+ENV KH_APP_PROFILE=${KH_APP_PROFILE}
+ENV KH_APP_EXTRAS=${KH_APP_EXTRAS}
 
 # Create working directory
 WORKDIR /app
@@ -46,13 +50,15 @@ COPY .env.example /app/.env
 # Install the base app packages only. Optional extras are installed by later targets.
 RUN --mount=type=ssh  \
     --mount=type=cache,target=/root/.cache/uv  \
-    uv sync --frozen --no-dev --package kotaemon --extra runtime-lite --package ktem --python /usr/local/bin/python \
+    uv sync --frozen --no-dev --package kotaemon --extra "$KH_APP_EXTRAS" --package ktem --python /usr/local/bin/python \
     && uv pip install --python .venv "pdfservices-sdk@git+https://github.com/niallcm/pdfservices-python-sdk.git@bump-and-unfreeze-requirements"
 
 ENTRYPOINT ["sh", "/app/launch.sh"]
 
 # Full version
 FROM lite AS full
+
+ENV KH_APP_PROFILE=full
 
 # Additional dependencies for full version
 RUN apt-get update -qqy && \
@@ -85,16 +91,31 @@ RUN --mount=type=ssh  \
 # Download NLTK data from LlamaIndex
 RUN /app/.venv/bin/python -c "from llama_index.core.readers.base import BaseReader"
 
-# Optional reader: docling
-RUN --mount=type=ssh  \
-    --mount=type=cache,target=/root/.cache/uv  \
-    uv pip install --python .venv "libs/kotaemon[reader-docling]"
-
 # Optional RAG: lightRAG
-ENV USE_LIGHTRAG=true
+ENV KH_ENABLE_FEATURES=graphrag-light
 RUN --mount=type=ssh  \
     --mount=type=cache,target=/root/.cache/uv  \
     uv pip install --python .venv "libs/kotaemon[graphrag-light]"
+
+ENTRYPOINT ["sh", "/app/launch.sh"]
+
+# LightRAG without full document-processing dependencies
+FROM lite AS graphrag-light
+
+ENV KH_APP_PROFILE=graphrag-light
+RUN --mount=type=ssh  \
+    --mount=type=cache,target=/root/.cache/uv  \
+    uv pip install --python .venv "libs/kotaemon[runtime-graphrag-light]"
+
+ENTRYPOINT ["sh", "/app/launch.sh"]
+
+# Ollama plus enhanced open-source document readers
+FROM lite AS ollama-docs
+
+ENV KH_APP_PROFILE=ollama-docs
+RUN --mount=type=ssh  \
+    --mount=type=cache,target=/root/.cache/uv  \
+    uv pip install --python .venv "libs/kotaemon[runtime-ollama-docs]"
 
 ENTRYPOINT ["sh", "/app/launch.sh"]
 
@@ -113,7 +134,12 @@ RUN --mount=type=ssh  \
 ENTRYPOINT ["sh", "/app/launch.sh"]
 
 # Ollama-bundled version
-FROM full AS ollama
+FROM lite AS ollama
+
+ENV KH_APP_PROFILE=ollama
+RUN --mount=type=ssh  \
+    --mount=type=cache,target=/root/.cache/uv  \
+    uv pip install --python .venv "libs/kotaemon[runtime-ollama]"
 
 # Install ollama
 RUN curl -fsSL https://ollama.com/install.sh | sh
