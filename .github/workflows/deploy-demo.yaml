@@ -1,6 +1,6 @@
 name: Deploy demo to VPS
 
-# Push to `demo` -> build the lite image, push to ghcr, then SSH into the
+# Push to `demo` -> build the lite-docling image, push to ghcr, then SSH into the
 # Hetzner VPS and roll the stack. See deploy/README.md for the required
 # repository secrets and one-time server setup.
 on:
@@ -14,7 +14,7 @@ env:
 
 jobs:
   build:
-    name: Build and push lite image
+    name: Build and push lite-docling image
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -49,10 +49,10 @@ jobs:
         with:
           images: ${{ env.FULL_IMAGE_NAME }}
           tags: |
-            # branch name -> demo-lite (consumed by deploy/docker-compose.prod.yml)
-            type=ref,event=branch,suffix=-lite
-            # commit sha -> sha-<short>-lite (for rollback/traceability)
-            type=sha,suffix=-lite
+            # branch name -> demo-lite-docling (consumed by deploy/docker-compose.prod.yml)
+            type=ref,event=branch,suffix=-lite-docling
+            # commit sha -> sha-<short>-lite-docling (for rollback/traceability)
+            type=sha,suffix=-lite-docling
           flavor: |
             latest=false
 
@@ -70,7 +70,7 @@ jobs:
           context: .
           push: true
           platforms: linux/amd64
-          target: lite
+          target: lite-docling
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
@@ -88,11 +88,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           KH_DOMAIN: ${{ secrets.KH_DOMAIN }}
+          KH_APP_NAME: "RAG Demo"
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          envs: GITHUB_TOKEN,GITHUB_ACTOR,KH_DOMAIN
+          envs: GITHUB_TOKEN,GITHUB_ACTOR,KH_DOMAIN,KH_APP_NAME
           script: |
             set -e
             cd /opt/kotaemon

@@ -12,6 +12,7 @@ OPENAI_API_BASE="https://openrouter.ai/api/v1"
 OPENAI_API_KEY=""                  # sk-...  (REQUIRED)
 OPENAI_CHAT_MODEL="openai/gpt-4o-mini"
 OPENAI_EMBEDDINGS_MODEL="openai/text-embedding-3-large"
+COHERE_API_KEY=""                  # optional — enables Cohere reranking if set
 GH_REPO="ali-shahin/kotaemon"
 SERVER_NAME="kotaemon-demo"
 HCLOUD_CONTEXT="newsflow"
@@ -97,6 +98,20 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 curl -fsSL https://get.docker.com | sh >/dev/null
 
+# Swap — the box has only ~4 GB RAM and Docling loads torch + layout/table models
+# during indexing, which can spike past available RAM. A 4 GB swapfile turns a hard
+# OOM kill into slow-but-working indexing. Idempotent.
+if ! swapon --show | grep -q '/swapfile'; then
+  fallocate -l 4G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=4096
+  chmod 600 /swapfile
+  mkswap /swapfile
+  swapon /swapfile
+  grep -qF '/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+  echo "  4 GB swapfile enabled."
+else
+  echo "  Swap already present."
+fi
+
 id -u "$DUSER" &>/dev/null || useradd -m -s /bin/bash "$DUSER"
 usermod -aG docker,sudo "$DUSER"
 
@@ -139,9 +154,9 @@ CLONE
 log "Writing .env on server..."
 ssh -o StrictHostKeyChecking=no -i "$SSH_KEY_PATH" \
     "$DEPLOY_USER@$SERVER_IP" bash -s -- \
-    "$DOMAIN" "$OPENAI_API_KEY" "$OPENAI_CHAT_MODEL" "$OPENAI_EMBEDDINGS_MODEL" "$OPENAI_API_BASE" <<'DOTENV'
+    "$DOMAIN" "$OPENAI_API_KEY" "$OPENAI_CHAT_MODEL" "$OPENAI_EMBEDDINGS_MODEL" "$OPENAI_API_BASE" "$COHERE_API_KEY" <<'DOTENV'
 set -euo pipefail
-D="$1" KEY="$2" MODEL="$3" EMB="$4" API_BASE="$5"
+D="$1" KEY="$2" MODEL="$3" EMB="$4" API_BASE="$5" COHERE="$6"
 if [ -f /opt/kotaemon/.env ]; then
   echo "  .env already exists — skipping (delete to regenerate)."
   exit 0
@@ -153,6 +168,7 @@ OPENAI_API_KEY=${KEY}
 OPENAI_CHAT_MODEL=${MODEL}
 OPENAI_EMBEDDINGS_MODEL=${EMB}
 ENVEOF
+[ -n "$COHERE" ] && echo "COHERE_API_KEY=${COHERE}" >> /opt/kotaemon/.env
 chmod 600 /opt/kotaemon/.env
 echo "  .env written."
 DOTENV

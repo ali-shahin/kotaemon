@@ -7,7 +7,7 @@
 #   docker compose -f deploy/docker-compose.prod.yml up -d
 services:
   kotaemon:
-    image: ${KOTAEMON_IMAGE:-ghcr.io/ali-shahin/kotaemon:demo-lite}
+    image: ${KOTAEMON_IMAGE:-ghcr.io/ali-shahin/kotaemon:demo-lite-docling}
     container_name: kotaemon
     # No host port published: only Caddy (same network) reaches it.
     expose:
@@ -16,7 +16,8 @@ services:
       GRADIO_SERVER_NAME: "0.0.0.0"
       GRADIO_SERVER_PORT: "7860"
       KH_APP_PROFILE: ${KH_APP_PROFILE:-lite}
-      KH_ENABLE_FEATURES: ${KH_ENABLE_FEATURES:-}
+      KH_APP_NAME: ${KH_APP_NAME:-Kotaemon}
+      KH_ENABLE_FEATURES: ${KH_ENABLE_FEATURES:-reader-docling}
       KH_DISABLE_FEATURES: ${KH_DISABLE_FEATURES:-}
     env_file:
       # Secrets + KH_DOMAIN live here, on the VPS only (git-ignored).

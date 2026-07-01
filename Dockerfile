@@ -99,6 +99,19 @@ RUN --mount=type=ssh  \
 
 ENTRYPOINT ["sh", "/app/launch.sh"]
 
+# Lite plus the Docling reader for better PDF/table/figure extraction.
+# Much lighter than `full` (no unstructured/torchvision/libreoffice) so it fits a
+# small VPS. Keeps the lite profile and just enables the docling feature.
+FROM lite AS lite-docling
+
+ENV KH_APP_PROFILE=lite
+ENV KH_ENABLE_FEATURES=reader-docling
+RUN --mount=type=ssh  \
+    --mount=type=cache,target=/root/.cache/uv  \
+    uv pip install --python .venv "libs/kotaemon[reader-docling]"
+
+ENTRYPOINT ["sh", "/app/launch.sh"]
+
 # LightRAG without full document-processing dependencies
 FROM lite AS graphrag-light
 

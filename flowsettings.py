@@ -17,6 +17,7 @@ this_dir = Path(this_file).parent
 # change this if your app use a different name
 KH_PACKAGE_NAME = "kotaemon_app"
 
+KH_APP_NAME = config("KH_APP_NAME", default="Kotaemon")
 KH_APP_VERSION = config("KH_APP_VERSION", None)
 if not KH_APP_VERSION:
     try:
@@ -558,6 +559,14 @@ KH_READER_MODE_CHOICES = [
         for item in KH_DISABLED_READER_MODES
     ],
 ]
+
+# When Docling is available, route PDFs through it by default (better table/figure
+# extraction) than the basic open-source reader, with no manual reader selection.
+# Applied via the file-index dev override (see pipelines.py `dev_settings`).
+if feature_available("reader-docling"):
+    FILE_INDEX_PIPELINE_FILE_EXTRACTORS = {
+        ".pdf": "kotaemon.loaders.DoclingReader",
+    }
 
 KH_INDEX_TYPES = [
     "ktem.index.file.FileIndex",

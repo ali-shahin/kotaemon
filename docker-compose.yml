@@ -18,7 +18,7 @@ services:
       GRADIO_SERVER_NAME: "0.0.0.0"
       GRADIO_SERVER_PORT: "7860"
       KH_APP_PROFILE: ${KH_APP_PROFILE:-lite}
-      KH_ENABLE_FEATURES: ${KH_ENABLE_FEATURES:-}
+      KH_ENABLE_FEATURES: ${KH_ENABLE_FEATURES:-reader-docling}
       KH_DISABLE_FEATURES: ${KH_DISABLE_FEATURES:-}
     env_file:
       - path: .env # config seed on first run; create from .env.example

@@ -1,8 +1,9 @@
 # Demo deployment (Hetzner VPS)
 
-Auto-deploys the Kotaemon **lite** image to a Hetzner VPS on every push to the
-`demo` branch. CI builds and pushes the image to ghcr, then SSHes into the VPS to
-roll the stack. Caddy fronts the app with automatic Let's Encrypt TLS.
+Auto-deploys the Kotaemon **lite-docling** image (lite + the Docling PDF reader for
+better table/figure extraction) to a Hetzner VPS on every push to the `demo` branch.
+CI builds and pushes the image to ghcr, then SSHes into the VPS to roll the stack.
+Caddy fronts the app with automatic Let's Encrypt TLS.
 
 ## Quick start (automated)
 
@@ -20,8 +21,8 @@ to provision by hand.
 
 ```
 push to demo ──▶ GitHub Actions (deploy-demo.yaml)
-                   ├─ build lite image (Dockerfile target=lite)
-                   ├─ push ghcr.io/ali-shahin/kotaemon:demo-lite (+ :sha-<short>-lite)
+                   ├─ build lite-docling image (Dockerfile target=lite-docling)
+                   ├─ push ghcr.io/ali-shahin/kotaemon:demo-lite-docling (+ :sha-<short>-lite-docling)
                    └─ ssh VPS ▶ git pull + docker compose pull + up -d
 
 Internet ─80/443─▶ Caddy (TLS) ─▶ kotaemon:7860 (internal network)
@@ -78,8 +79,12 @@ OPENAI_API_KEY=sk-...
 OPENAI_CHAT_MODEL=gpt-4o-mini
 OPENAI_EMBEDDINGS_MODEL=text-embedding-3-large
 
-# Optional: override the ghcr image tag (defaults to demo-lite)
-# KOTAEMON_IMAGE=ghcr.io/ali-shahin/kotaemon:demo-lite
+# Optional: enable reranking (improves which chunks surface). Either key works.
+# COHERE_API_KEY=...
+# VOYAGE_API_KEY=...
+
+# Optional: override the ghcr image tag (defaults to demo-lite-docling)
+# KOTAEMON_IMAGE=ghcr.io/ali-shahin/kotaemon:demo-lite-docling
 ```
 
 > The default login is `admin/admin`. The `.env` seed only applies on first DB
@@ -102,7 +107,7 @@ The image push uses the built-in `GITHUB_TOKEN`; no registry secret is needed.
 - **Status:** `docker compose -f deploy/docker-compose.prod.yml ps`
 - **Rollback:** pin a previous image and restart:
   ```bash
-  KOTAEMON_IMAGE=ghcr.io/ali-shahin/kotaemon:sha-<short>-lite \
+  KOTAEMON_IMAGE=ghcr.io/ali-shahin/kotaemon:sha-<short>-lite-docling \
     docker compose -f deploy/docker-compose.prod.yml up -d
   ```
 - **Data:** all app state persists in `/opt/kotaemon/ktem_app_data` — back it up
