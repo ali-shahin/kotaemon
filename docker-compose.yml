@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      target: lite # change to: full | ollama | paddle
+      target: ${KH_TARGET_IMAGE:-lite} # change to: lite | full | ollama | paddle
     # To use a prebuilt image instead of building locally, comment out `build`
     # above and uncomment the line below:
     # image: ghcr.io/cinnamon/kotaemon:main-lite
