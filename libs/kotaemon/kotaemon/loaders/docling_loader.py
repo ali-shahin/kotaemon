@@ -41,14 +41,45 @@ class DoclingReader(BaseReader):
         ),
     )
 
+    ocr_lang: Optional[list[str]] = Param(
+        None,
+        help=(
+            "OCR languages as EasyOCR codes (e.g. ['ar', 'en']). When set, the "
+            "converter forces full-page OCR in these languages, bypassing a broken "
+            "embedded text layer. When None, docling uses its default behavior "
+            "(no forced OCR)."
+        ),
+    )
+
     @Param.auto(cache=True)
     def converter_(self):
         try:
             from docling.document_converter import DocumentConverter
-        except ImportError:
-            raise ImportError("Please install docling: 'pip install docling'")
+        except ModuleNotFoundError as e:
+            raise ImportError("Please install docling: 'pip install docling'") from e
 
-        return DocumentConverter()
+        if not self.ocr_lang:
+            return DocumentConverter()
+
+        from docling.datamodel.base_models import InputFormat
+        from docling.datamodel.pipeline_options import (
+            EasyOcrOptions,
+            PdfPipelineOptions,
+        )
+        from docling.document_converter import PdfFormatOption
+
+        pipeline_options = PdfPipelineOptions()
+        pipeline_options.do_ocr = True
+        pipeline_options.ocr_options = EasyOcrOptions(
+            lang=list(self.ocr_lang),
+            force_full_page_ocr=True,
+        )
+
+        return DocumentConverter(
+            format_options={
+                InputFormat.PDF: PdfFormatOption(pipeline_options=pipeline_options)
+            }
+        )
 
     def run(
         self, file_path: str | Path, extra_info: Optional[dict] = None, **kwargs
