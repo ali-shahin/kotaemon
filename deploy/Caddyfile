@@ -1,0 +1,6 @@
+# Caddy auto-provisions a Let's Encrypt cert for $KH_DOMAIN and reverse-proxies
+# to the kotaemon container. WebSocket upgrades (used by Gradio) are handled
+# automatically. KH_DOMAIN is injected from ../.env by docker-compose.prod.yml.
+{$KH_DOMAIN} {
+	reverse_proxy kotaemon:7860
+}

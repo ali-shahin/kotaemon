@@ -1,0 +1,104 @@
+name: Deploy demo to VPS
+
+# Push to `demo` -> build the lite image, push to ghcr, then SSH into the
+# Hetzner VPS and roll the stack. See deploy/README.md for the required
+# repository secrets and one-time server setup.
+on:
+  push:
+    branches:
+      - demo
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  build:
+    name: Build and push lite image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
+      - name: Set repository and image name
+        run: |
+          echo "FULL_IMAGE_NAME=${{ env.REGISTRY }}/${IMAGE_NAME,,}" >>${GITHUB_ENV}
+        env:
+          IMAGE_NAME: "${{ github.repository }}"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Set up Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.FULL_IMAGE_NAME }}
+          tags: |
+            # branch name -> demo-lite (consumed by deploy/docker-compose.prod.yml)
+            type=ref,event=branch,suffix=-lite
+            # commit sha -> sha-<short>-lite (for rollback/traceability)
+            type=sha,suffix=-lite
+          flavor: |
+            latest=false
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push docker image
+        uses: docker/build-push-action@v6
+        with:
+          file: Dockerfile
+          context: .
+          push: true
+          platforms: linux/amd64
+          target: lite
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to VPS over SSH
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      packages: read
+    steps:
+      - name: SSH and roll the stack
+        uses: appleboy/ssh-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KH_DOMAIN: ${{ secrets.KH_DOMAIN }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          envs: GITHUB_TOKEN,GITHUB_ACTOR,KH_DOMAIN
+          script: |
+            set -e
+            cd /opt/kotaemon
+            git fetch origin && git reset --hard origin/demo
+            echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+            docker compose -f deploy/docker-compose.prod.yml pull
+            docker compose -f deploy/docker-compose.prod.yml up -d
+            docker logout ghcr.io
+            docker image prune -f
