@@ -103,7 +103,7 @@ dev = [
     "pytest-mock",
     "sphinx",
 ]
-docling = ["docling<=2.5.2"]
+docling = ["docling<=2.5.2", "docling-core==2.5.1"]
 paddleocr = ["paddleocr[doc-parser]"]
 lightrag = [
     "aioboto3",
