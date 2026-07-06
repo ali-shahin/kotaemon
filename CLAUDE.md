@@ -2,6 +2,14 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+> **TODO list:** the project's task list (TODO / BACKLOG / PLANNING / DONE) lives at `.local/tasks.md`.
+
+## Workflow
+
+When implementing a feature or fixing a bug, prefer working off a dedicated git
+worktree (one per feature/bug) so multiple efforts can proceed in parallel
+without interfering.
+
 ## Overview
 
 Kotaemon is an open-source RAG UI for chatting with documents. It is both a reusable

@@ -26,6 +26,20 @@ Tests use `pytest`. Name files `test_*.py` and place them in the owning package 
 
 The project uses Angular/Conventional Commit style for PR titles and commits, optionally with gitmoji: `feat: add loader option`, `fix(index): validate paths`, `docs: update setup guide`. PRs should include a clear description, linked issues when relevant, test results, and screenshots or short recordings for UI changes. All GitHub Actions checks, including style, title validation, and unit tests, must pass before merge.
 
+## Git Worktree Workflow
+
+Before implementing a new feature or fixing a bug, create a task-specific branch and a
+separate Git worktree. Perform the implementation and validation in that worktree so
+multiple tasks can proceed concurrently without interfering with one another. Worktree
+names and locations may be chosen per task. Read-only investigation, planning, and trivial
+documentation-only changes do not require a separate worktree.
+
+## Task Tracking
+
+Use `.local/tasks.md` for all persistent TODO items and task-status updates. Preserve its
+existing sections and content when updating it. The file remains local-only under the
+existing `.local/` ignore rule; temporary internal planning does not need to be persisted.
+
 ## Security & Configuration Tips
 
 Copy `settings.yaml.example` for local configuration and avoid committing secrets, credentials, model keys, or generated runtime data. Be careful with file path handling, document loaders, and migration scripts; validate user-controlled paths and keep changes scoped to the relevant package.
