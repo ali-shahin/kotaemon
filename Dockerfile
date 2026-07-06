@@ -108,6 +108,10 @@ ENV KH_APP_PROFILE=lite
 ENV KH_ENABLE_FEATURES=reader-docling
 RUN --mount=type=ssh  \
     --mount=type=cache,target=/root/.cache/uv  \
+    uv pip install --python .venv torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
+RUN --mount=type=ssh  \
+    --mount=type=cache,target=/root/.cache/uv  \
     uv pip install --python .venv "libs/kotaemon[reader-docling]"
 
 ENTRYPOINT ["sh", "/app/launch.sh"]
