@@ -6,7 +6,7 @@ Kotaemon is a Python workspace with the app entry points at the repository root 
 
 ## Build, Test, and Development Commands
 
-- `uv sync --python 3.10`: create/update the recommended development environment from `uv.lock`.
+- `uv sync --python 3.11`: create/update the recommended development environment from `uv.lock`.
 - `pip install -e "libs/kotaemon[all]" && pip install -e "libs/ktem"`: editable install path when not using `uv`.
 - `python app.py`: run the local Kotaemon app after dependencies are installed.
 - `bash scripts/run_linux.sh` or `scripts/run_macos.sh`: OS-specific setup/run helpers.
@@ -16,7 +16,7 @@ Kotaemon is a Python workspace with the app entry points at the repository root 
 
 ## Coding Style & Naming Conventions
 
-Use Python 3.10+ syntax. Follow existing module patterns: snake_case for files, functions, and variables; PascalCase for classes; UPPER_SNAKE_CASE for constants. Keep imports organized with first-party packages `kotaemon` and `ktem`; `isort`, `black`, `flake8`, `codespell`, and pre-commit are configured in project metadata. Prefer small, typed, composable functions and package-local helpers over cross-package shortcuts.
+Use Python 3.11+ syntax. Follow existing module patterns: snake_case for files, functions, and variables; PascalCase for classes; UPPER_SNAKE_CASE for constants. Keep imports organized with first-party packages `kotaemon` and `ktem`; `isort`, `black`, `flake8`, `codespell`, and pre-commit are configured in project metadata. Prefer small, typed, composable functions and package-local helpers over cross-package shortcuts.
 
 ## Testing Guidelines
 

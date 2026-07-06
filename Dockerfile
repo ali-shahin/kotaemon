@@ -24,6 +24,9 @@ ARG TARGETARCH
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONIOENCODING=UTF-8
+ENV UV_PYTHON=3.11
+ENV UV_PYTHON_DOWNLOADS=never
+ENV UV_LINK_MODE=copy
 ENV TARGETARCH=${TARGETARCH}
 
 # Create working directory
@@ -38,16 +41,29 @@ RUN bash scripts/download_pdfjs.sh $PDFJS_PREBUILT_DIR
 # Install uv dependencies
 RUN pip install --no-cache-dir "uv"
 
-# Copy contents
+# Copy dependency metadata first so dependency layers survive source changes
+COPY .python-version pyproject.toml uv.lock /app/
+COPY libs/kotaemon/pyproject.toml libs/kotaemon/README.md /app/libs/kotaemon/
+COPY libs/ktem/pyproject.toml libs/ktem/MANIFEST.in /app/libs/ktem/
+
+# Install third-party runtime packages
+RUN --mount=type=ssh  \
+    --mount=type=cache,target=/root/.cache/uv  \
+    uv sync --frozen --no-dev --no-install-workspace
+
+# Copy contents after dependencies are installed
 COPY . /app
 COPY launch.sh /app/launch.sh
 COPY .env.example /app/.env
 
-# Install pip packages
+# Install workspace packages
 RUN --mount=type=ssh  \
     --mount=type=cache,target=/root/.cache/uv  \
-    uv sync --frozen --no-cache \
-    && uv pip install --python .venv "pdfservices-sdk@git+https://github.com/niallcm/pdfservices-python-sdk.git@bump-and-unfreeze-requirements"
+    uv sync --frozen --no-dev --inexact
+
+RUN --mount=type=ssh  \
+    --mount=type=cache,target=/root/.cache/uv  \
+    uv pip install --python .venv "pdfservices-sdk@git+https://github.com/niallcm/pdfservices-python-sdk.git@bump-and-unfreeze-requirements"
 
 RUN --mount=type=ssh  \
     --mount=type=cache,target=/root/.cache/uv  \

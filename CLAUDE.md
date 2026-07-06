@@ -55,10 +55,10 @@ first run; afterward configuration lives in the DB and is editable in the UI. Ru
 
 ## Common commands
 
-Environment setup (Python >= 3.10):
+Environment setup (Python >= 3.11):
 
 ```shell
-uv sync --python 3.10          # install workspace (recommended)
+uv sync --python 3.11          # install workspace (recommended)
 source .venv/bin/activate
 # or, without uv:
 pip install -e "libs/kotaemon[all]" && pip install -e "libs/ktem"

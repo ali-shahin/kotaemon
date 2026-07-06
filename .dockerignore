@@ -1,9 +1,15 @@
 .github/
 .git/
 .mypy_cache/
+.pytest_cache/
+.ruff_cache/
 __pycache__/
 ktem_app_data/
 env/
+.venv/
+*.egg-info/
+build/
+dist/
 .pre-commit-config.yaml
 .commitlintrc
 .gitignore
@@ -13,3 +19,4 @@ README.md
 *.sh
 
 !/launch.sh
+!/scripts/download_pdfjs.sh
